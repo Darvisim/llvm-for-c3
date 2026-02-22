@@ -164,35 +164,110 @@ fi
 HOST_TRIPLE=${TARGET_TRIPLE:-$($LLVM_CONFIG_PATH --host-target)}
 echo "Host Triple: $HOST_TRIPLE"
 
-cd ../build_rt
-cmake \
-  -G Ninja \
-  -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-  -DCMAKE_INSTALL_PREFIX="/" \
-  -DLLVM_CMAKE_DIR="$LLVM_CMAKE_DIR_PATH" \
-  -DCMAKE_C_COMPILER_TARGET="${HOST_TRIPLE}" \
-  -DCOMPILER_RT_BUILD_BUILTINS=ON \
-  -DCOMPILER_RT_BUILD_SANITIZERS=ON \
-  -DCOMPILER_RT_BUILD_XRAY=OFF \
-  -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
-  -DCOMPILER_RT_BUILD_PROFILE=OFF \
-  -DCOMPILER_RT_BUILD_MEMPROF=OFF \
-  -DCOMPILER_RT_BUILD_ORC=OFF \
-  -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
-  ${CROSS_COMPILE} \
-  ${CMAKE_ARGUMENTS} \
-  ../compiler-rt
+cd ..
 
-echo "Building compiler-rt..."
-df -h
+if [[ "$3" == *ios* ]]; then
+  IOS_DEVICE_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+  IOS_SIM_SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+  DEVICE_TRIPLE="arm64-apple-ios"
+  SIM_TRIPLE="arm64-apple-ios-simulator"
 
-cmake --build . --config "${BUILD_TYPE}" ${BUILD_PARALLEL_FLAGS}
+  echo "Building compiler-rt for iOS device..."
+  mkdir -p ios_device
+  cd ios_device
 
-echo "Installing compiler-rt..."
-df -h
+  cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+    -DCMAKE_SYSTEM_NAME=iOS \
+    -DCMAKE_OSX_SYSROOT="${IOS_DEVICE_SDK}" \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+    -DCMAKE_INSTALL_PREFIX=/ \
+    -DCMAKE_C_COMPILER=$(xcrun --sdk iphoneos -f clang) \
+    -DCMAKE_C_COMPILER_TARGET="${DEVICE_TRIPLE}" \
+    -DLLVM_CMAKE_DIR="$LLVM_CMAKE_DIR_PATH" \
+    -DCOMPILER_RT_BUILD_BUILTINS=ON \
+    -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
+    -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
+    ../compiler-rt
+  ninja
+  DESTDIR=../build/destdir_ios_device ninja install
+  cd ..
 
-# Install to the same destdir as LLVM
-DESTDIR=../build/destdir cmake --install . --config "${BUILD_TYPE}"
+  echo "Building compiler-rt for iOS simulator..."
+  mkdir -p ios_sim
+  cd ios_sim
 
+  cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+    -DCMAKE_SYSTEM_NAME=iOS \
+    -DCMAKE_OSX_SYSROOT="${IOS_SIM_SDK}" \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+    -DCMAKE_INSTALL_PREFIX=/ \
+    -DCMAKE_C_COMPILER=$(xcrun --sdk iphonesimulator -f clang) \
+    -DCMAKE_C_COMPILER_TARGET="${SIM_TRIPLE}" \
+    -DLLVM_CMAKE_DIR="$LLVM_CMAKE_DIR_PATH" \
+    -DCOMPILER_RT_BUILD_BUILTINS=ON \
+    -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
+    -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
+    ../compiler-rt
+
+  ninja
+  DESTDIR=../build/destdir_ios_sim ninja install
+  cd ..
+
+  echo "Creating Universal builtins..."
+
+  DEVICE_LIB=$(find build/destdir_ios_device -name "libclang_rt.builtins_ios.a" | head -n 1)
+  SIM_LIB=$(find build/destdir_ios_sim -name "libclang_rt.builtins_ios*.a" | head -n 1)
+
+  if [[ -z "$DEVICE_LIB" || -z "$SIM_LIB" ]]; then
+    echo "Error: Could not locate builtins libraries"
+    exit 1
+  fi
+
+  UNIVERSAL_DIR="build/destdir/lib/clang/${LLVM_VERSION}/lib/darwin"
+  mkdir -p "$UNIVERSAL_DIR"
+
+  UNIVERSAL_LIB="$UNIVERSAL_DIR/libclang_rt.builtins_ios.a"
+
+  lipo -create "$DEVICE_LIB" "$SIM_LIB" -output "$UNIVERSAL_LIB"
+  lipo -info "$UNIVERSAL_LIB"
+  
+  echo "Universal builtins created at:"
+  echo "$UNIVERSAL_LIB"
+
+else
+  cd build_rt
+  cmake \
+    -G Ninja \
+    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+    -DCMAKE_INSTALL_PREFIX="/" \
+    -DLLVM_CMAKE_DIR="$LLVM_CMAKE_DIR_PATH" \
+    -DCMAKE_C_COMPILER_TARGET="${HOST_TRIPLE}" \
+    -DCOMPILER_RT_BUILD_BUILTINS=ON \
+    -DCOMPILER_RT_BUILD_SANITIZERS=ON \
+    -DCOMPILER_RT_BUILD_XRAY=OFF \
+    -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
+    -DCOMPILER_RT_BUILD_PROFILE=OFF \
+    -DCOMPILER_RT_BUILD_MEMPROF=OFF \
+    -DCOMPILER_RT_BUILD_ORC=OFF \
+    -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
+    ${CROSS_COMPILE} \
+    ${CMAKE_ARGUMENTS} \
+    ../compiler-rt
+
+  echo "Building compiler-rt..."
+  df -h
+
+  cmake --build . --config "${BUILD_TYPE}" ${BUILD_PARALLEL_FLAGS}
+
+  echo "Installing compiler-rt..."
+  df -h
+
+  # Install to the same destdir as LLVM
+  DESTDIR=../build/destdir cmake --install . --config "${BUILD_TYPE}"
+fi
 echo "Final Disk Usage:"
 df -h
