@@ -47,12 +47,15 @@ if [[ -z "$BUILD_TYPE" ]]; then
   BUILD_TYPE="Release"
 fi
 
-# Adjust cross-compilation (Only RISC-V requires cross-compiling on current CI runners)
+# Adjust cross-compilation
 CROSS_COMPILE=""
 TARGET_TRIPLE=""
 if [[ "$LLVM_CROSS" == *riscv64* ]]; then
     TARGET_TRIPLE="riscv64-linux-gnu"
     CROSS_COMPILE="-DLLVM_HOST_TRIPLE=$TARGET_TRIPLE -DCMAKE_C_COMPILER=riscv64-linux-gnu-gcc-13 -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++-13 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=riscv64"
+elif [[ "$LLVM_CROSS" == *ios-arm64* ]]; then
+    TARGET_TRIPLE="arm64-apple-ios"
+    CROSS_COMPILE="-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64"
 fi
 
 # Set defaults
@@ -61,6 +64,23 @@ OPTIMIZED_TABLEGEN="ON"
 PARALLEL_LINK_FLAGS=""
 BUILD_PARALLEL_FLAGS=""
 CMAKE_ARGUMENTS=""
+BUILD_COMPILER_RT="ON"
+ZLIB_ZSTD_ARGS="-DLLVM_ENABLE_ZLIB=FORCE_ON -DLLVM_ENABLE_ZSTD=FORCE_ON"
+DYLIB_ARGS="-DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON"
+ENABLE_PROJECTS="lld"
+
+if [[ "$STATIC_BUILD" == "ON" ]]; then
+  ZLIB_ZSTD_ARGS="${ZLIB_ZSTD_ARGS} -DZLIB_LIBRARY=/usr/lib/libz.a -DZLIB_INCLUDE_DIR=/usr/include -Dzstd_LIBRARY=/usr/lib/libzstd.a -Dzstd_INCLUDE_DIR=/usr/include"
+  DYLIB_ARGS="-DBUILD_SHARED_LIBS=OFF -DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF -DCMAKE_EXE_LINKER_FLAGS=-static"
+fi
+
+if [[ "$LLVM_CROSS" == *ios-arm64* ]]; then
+  ZLIB_ZSTD_ARGS="-DLLVM_ENABLE_ZLIB=OFF -DLLVM_ENABLE_ZSTD=OFF"
+  DYLIB_ARGS="-DBUILD_SHARED_LIBS=OFF -DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF"
+  ENABLE_PROJECTS="clang;lld"
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_ENABLE_RTTI=OFF"
+  BUILD_COMPILER_RT="OFF"
+fi
 
 if [[ "$BUILD_TYPE" == "Debug" ]]; then
   BUILD_TYPE="Release"
@@ -84,11 +104,9 @@ cmake \
   -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
   -DCMAKE_DISABLE_FIND_PACKAGE_LibXml2=TRUE \
   -DCMAKE_INSTALL_PREFIX="/" \
-  -DLLVM_ENABLE_PROJECTS="lld" \
+  -DLLVM_ENABLE_PROJECTS="${ENABLE_PROJECTS}" \
   -DLLVM_ENABLE_RUNTIMES="" \
-  -DLLVM_ENABLE_ZLIB=FORCE_ON \
-  -DLLVM_ENABLE_ZSTD=FORCE_ON \
-  $(if [[ "$STATIC_BUILD" == "ON" ]]; then echo "-DZLIB_LIBRARY=/usr/lib/libz.a -DZLIB_INCLUDE_DIR=/usr/include -Dzstd_LIBRARY=/usr/lib/libzstd.a -Dzstd_INCLUDE_DIR=/usr/include"; fi) \
+  ${ZLIB_ZSTD_ARGS} \
   -DLLVM_TARGETS_TO_BUILD="X86;AArch64;RISCV;WebAssembly;LoongArch;ARM" \
   -DLLVM_INCLUDE_DOCS=OFF \
   -DLLVM_BUILD_TESTS=OFF \
@@ -104,7 +122,7 @@ cmake \
   -DLLVM_ENABLE_CURL=OFF \
   -DLLVM_ENABLE_BINDINGS=OFF \
   -DLLVM_OPTIMIZED_TABLEGEN="${OPTIMIZED_TABLEGEN}" \
-  $(if [[ "$STATIC_BUILD" == "ON" ]]; then echo "-DBUILD_SHARED_LIBS=OFF -DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF -DCMAKE_EXE_LINKER_FLAGS=-static"; else echo "-DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON"; fi) \
+  ${DYLIB_ARGS} \
   ${CROSS_COMPILE} \
   ${PARALLEL_LINK_FLAGS} \
   ${CMAKE_ARGUMENTS} \
@@ -120,6 +138,8 @@ DESTDIR=destdir cmake --install . --config "${BUILD_TYPE}"
 find . -maxdepth 1 ! -name 'destdir' ! -name 'bin' ! -name 'lib' ! -name '.' -exec rm -rf {} + || true
 
 # -- PHASE 2: Build compiler-rt (Builtins & Sanitizers) --
+
+if [[ "$BUILD_COMPILER_RT" == "ON" ]]; then
 
 # --- AUTO-DISCOVERY ---
 # Locate llvm-config inside the destdir (it might be in /bin or /usr/bin)
@@ -179,6 +199,8 @@ df -h
 
 # Install to the same destdir as LLVM
 DESTDIR=../build/destdir cmake --install . --config "${BUILD_TYPE}"
+
+fi
 
 echo "Final Disk Usage:"
 df -h
