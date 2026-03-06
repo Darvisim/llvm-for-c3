@@ -78,8 +78,23 @@ if [[ "$LLVM_CROSS" == *ios-arm64* ]]; then
   ZLIB_ZSTD_ARGS="-DLLVM_ENABLE_ZLIB=OFF -DLLVM_ENABLE_ZSTD=OFF"
   DYLIB_ARGS="-DBUILD_SHARED_LIBS=OFF -DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF"
   ENABLE_PROJECTS="clang;lld"
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_ENABLE_RTTI=OFF -DCMAKE_MACOSX_BUNDLE=OFF -DLLVM_BUILD_TOOLS=OFF -DLLVM_INCLUDE_UTILS=OFF"
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_ENABLE_RTTI=OFF -DCMAKE_MACOSX_BUNDLE=OFF -DLLVM_BUILD_TOOLS=OFF -DLLVM_INCLUDE_UTILS=OFF -DLLVM_ENABLE_WARNINGS=OFF"
   BUILD_COMPILER_RT="OFF"
+
+  # Apple's linker uses -dead_strip, not --gc-sections. The easiest way to avoid cross-compat
+  # issues here is to let CMake handle it for the target platform by disabling LLVM's hardcoded override.
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_ENABLE_FFI=OFF -DLLVM_ENABLE_LTO=OFF"
+  
+  # For cross-compiling, especially Apple platforms on foreign hosts/toolchains, forcing LLD handles flags better.
+  # However, when using Apple Clang itself, it might still default to "ld" which passes --gc-sections from LLVM's CMake.
+  # We can explicitly tell LLVM CMake not to add unresolved symbol and gc-sections flags.
+  export CXXFLAGS="-stdlib=libc++" # Make sure we enforce Apple standard
+  
+  # Prevent LLVM from forcefully passing --gc-sections by telling CMake we don't support function/data sections
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCUSTOM_LINKER_FLAGS=-Wl,-dead_strip"
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_NO_DEAD_STRIP=1"
+  # Override default system flags for the target (iPhoneOS)
+  export LDFLAGS="-Wl,-dead_strip"
 fi
 
 if [[ "$BUILD_TYPE" == "Debug" ]]; then
