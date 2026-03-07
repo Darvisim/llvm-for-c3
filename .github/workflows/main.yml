@@ -99,10 +99,10 @@ jobs:
         if: matrix.target.id != 'windows-amd64'
         shell: bash
         run: |
-          if [ "${{ matrix.target.id }}" == 'linux-amd64' || "${{ matrix.target.id }}" == 'linux-aarch64' || "${{ matrix.target.id }}" == 'linux-riscv64' ]; then
+          if [[ "${{ matrix.target.id }}" == linux-* && "${{ matrix.target.id }}" != "linux-amd64-musl" ]]; then
             sudo apt-get update
             sudo apt-get install -y ninja-build zlib1g-dev libzstd-dev
-          elif [ "${{ matrix.target.id }}" == 'darwin-amd64' || "${{ matrix.target.id }}" == 'darwin-aarch64' || "${{ matrix.target.id }}" == 'ios-arm64' || "${{ matrix.target.id }}" == 'ios-x86_64' ]; then
+          elif [[ "${{ matrix.target.id }}" == darwin-* ]] || [[ "${{ matrix.target.id }}" == ios-* ]]; then
             command -v ninja >/dev/null || brew install ninja
           fi
 
