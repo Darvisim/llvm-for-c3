@@ -81,6 +81,8 @@ if [[ "$LLVM_CROSS" == *ios-arm64* ]]; then
   CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_ENABLE_RTTI=OFF -DCMAKE_MACOSX_BUNDLE=OFF -DLLVM_BUILD_TOOLS=OFF -DLLVM_INCLUDE_UTILS=OFF -DLLVM_ENABLE_WARNINGS=OFF"
   # Disable unnecessary Clang components since C3 just needs the backend libraries
   CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_BUILD_TOOLS=OFF -DCLANG_ENABLE_FORMAT=OFF"
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF -DBUILD_SHARED_LIBS=OFF"
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCLANG_ENABLE_OBJC_REWRITER=OFF -DCLANG_DEFAULT_OPENMP_RUNTIME=libomp -DLLVM_ENABLE_PLUGINS=OFF"
   BUILD_COMPILER_RT="OFF"
 
   # Apple's linker uses -dead_strip, not --gc-sections. The easiest way to avoid cross-compat
@@ -95,6 +97,13 @@ if [[ "$LLVM_CROSS" == *ios-arm64* ]]; then
   # Prevent LLVM from forcefully passing --gc-sections by telling CMake we don't support function/data sections
   CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCUSTOM_LINKER_FLAGS=-Wl,-dead_strip"
   CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_NO_DEAD_STRIP=1"
+  
+  # Prevent LLVM from forcefully passing -z defs (which Apple ld doesn't understand)
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_ENABLE_PIC=OFF"
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCMAKE_SHARED_LINKER_FLAGS=-Wl,-dead_strip"
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCMAKE_MODULE_LINKER_FLAGS=-Wl,-dead_strip"
+  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCMAKE_EXE_LINKER_FLAGS=-Wl,-dead_strip"
+
   # Override default system flags for the target (iPhoneOS)
   export LDFLAGS="-Wl,-dead_strip"
 fi
