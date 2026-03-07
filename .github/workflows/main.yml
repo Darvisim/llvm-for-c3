@@ -132,8 +132,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          if [ "${{ matrix.target.id }}" == "windows-amd64" ]; then
-            ./build.ps1 ${{ matrix.llvm_version }} ${{ env.LLVM_REPO_URL }} ${{ matrix.llvm_build_type }}
+          if [ "${{ matrix.target.id }}" = "windows-amd64" ]; then
+            pwsh -File ./build.ps1 ${{ matrix.llvm_version }} ${{ env.LLVM_REPO_URL }} ${{ matrix.llvm_build_type }}
           else
             ./build.sh \
             ${{ matrix.llvm_version }} \
