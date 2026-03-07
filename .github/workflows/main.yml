@@ -41,12 +41,6 @@ jobs:
           - id: "darwin-aarch64"
             os: "macos-latest"
 
-          - id: "ios-arm64"
-            os: "macos-latest"
-
-          - id: "ios-x86_64"
-            os: "macos-15-intel"
-
           - id: "windows-amd64"
             os: "windows-2022"
             tar_extra_args: "--dereference" # On Windows, symlinks require existing targets, so archives may fail. Dereferencing stores copies instead, slightly increasing size but ensuring reliable unpacking.
@@ -102,7 +96,7 @@ jobs:
           if [[ "${{ matrix.target.id }}" == linux-* && "${{ matrix.target.id }}" != "linux-amd64-musl" ]]; then
             sudo apt-get update
             sudo apt-get install -y ninja-build zlib1g-dev libzstd-dev
-          elif [[ "${{ matrix.target.id }}" == darwin-* ]] || [[ "${{ matrix.target.id }}" == ios-* ]]; then
+          elif [[ "${{ matrix.target.id }}" == darwin-* ]]; then
             command -v ninja >/dev/null || brew install ninja
           fi
 
@@ -150,17 +144,10 @@ jobs:
           if [ "${{ matrix.llvm_build_type }}" = "Debug" ]; then
             SUFFIX="-dbg"
           fi
-          if [ "${{ matrix.target.id }}" = "ios-arm64" ] || [ "${{ matrix.target.id }}" = "ios-x86_64" ]; then
-            tar --directory llvm-project/build/destdir \
-                --create --gzip --verbose \
-                ${{ matrix.target.tar_extra_args }} \
-                --file dist/llvm${SUFFIX}.tar.gz include lib
-          else
             tar --directory llvm-project/build/destdir \
                 --create --gzip --verbose \
                 ${{ matrix.target.tar_extra_args }} \
                 --file dist/llvm${SUFFIX}.tar.gz .
-          fi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v6

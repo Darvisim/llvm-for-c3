@@ -53,12 +53,6 @@ TARGET_TRIPLE=""
 if [[ "$LLVM_CROSS" == *riscv64* ]]; then
     TARGET_TRIPLE="riscv64-linux-gnu"
     CROSS_COMPILE="-DLLVM_HOST_TRIPLE=$TARGET_TRIPLE -DCMAKE_C_COMPILER=riscv64-linux-gnu-gcc-13 -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++-13 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=riscv64"
-elif [[ "$LLVM_CROSS" == *ios-arm64* ]]; then
-    TARGET_TRIPLE="arm64-apple-ios"
-    CROSS_COMPILE="-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64"
-elif [[ "$LLVM_CROSS" == *ios-x86_64* ]]; then
-    TARGET_TRIPLE="x86_64-apple-ios-simulator"
-    CROSS_COMPILE="-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_OSX_ARCHITECTURES=x86_64"
 fi
 
 # Set defaults
@@ -75,41 +69,6 @@ ENABLE_PROJECTS="lld"
 if [[ "$STATIC_BUILD" == "ON" ]]; then
   ZLIB_ZSTD_ARGS="${ZLIB_ZSTD_ARGS} -DZLIB_LIBRARY=/usr/lib/libz.a -DZLIB_INCLUDE_DIR=/usr/include -Dzstd_LIBRARY=/usr/lib/libzstd.a -Dzstd_INCLUDE_DIR=/usr/include"
   DYLIB_ARGS="-DBUILD_SHARED_LIBS=OFF -DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF -DCMAKE_EXE_LINKER_FLAGS=-static"
-fi
-
-if [[ "$LLVM_CROSS" == *ios-arm64* ]] || [[ "$LLVM_CROSS" == *ios-x86_64* ]]; then
-  ZLIB_ZSTD_ARGS="-DLLVM_ENABLE_ZLIB=OFF -DLLVM_ENABLE_ZSTD=OFF"
-  DYLIB_ARGS="-DBUILD_SHARED_LIBS=OFF -DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF"
-  ENABLE_PROJECTS="lld"
-  LLVM_TARGETS_TO_BUILD="X86;AArch64;ARM"
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_ENABLE_RTTI=OFF -DCMAKE_MACOSX_BUNDLE=OFF -DLLVM_BUILD_TOOLS=OFF -DLLVM_INCLUDE_UTILS=OFF -DLLVM_ENABLE_WARNINGS=OFF"
-  # Disable unnecessary Clang components since C3 just needs the backend libraries
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_BUILD_TOOLS=OFF -DCLANG_ENABLE_FORMAT=OFF"
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF -DBUILD_SHARED_LIBS=OFF"
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCLANG_ENABLE_OBJC_REWRITER=OFF -DCLANG_DEFAULT_OPENMP_RUNTIME=libomp -DLLVM_ENABLE_PLUGINS=OFF"
-  BUILD_COMPILER_RT="OFF"
-
-  # Apple's linker uses -dead_strip, not --gc-sections. The easiest way to avoid cross-compat
-  # issues here is to let CMake handle it for the target platform by disabling LLVM's hardcoded override.
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_ENABLE_FFI=OFF -DLLVM_ENABLE_LTO=OFF"
-  
-  # For cross-compiling, especially Apple platforms on foreign hosts/toolchains, forcing LLD handles flags better.
-  # However, when using Apple Clang itself, it might still default to "ld" which passes --gc-sections from LLVM's CMake.
-  # We can explicitly tell LLVM CMake not to add unresolved symbol and gc-sections flags.
-  export CXXFLAGS="-stdlib=libc++" # Make sure we enforce Apple standard
-  
-  # Prevent LLVM from forcefully passing --gc-sections by telling CMake we don't support function/data sections
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCUSTOM_LINKER_FLAGS=-Wl,-dead_strip"
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_NO_DEAD_STRIP=1"
-  
-  # Prevent LLVM from forcefully passing -z defs (which Apple ld doesn't understand)
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DLLVM_ENABLE_PIC=OFF"
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCMAKE_SHARED_LINKER_FLAGS=-Wl,-dead_strip"
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCMAKE_MODULE_LINKER_FLAGS=-Wl,-dead_strip"
-  CMAKE_ARGUMENTS="${CMAKE_ARGUMENTS} -DCMAKE_EXE_LINKER_FLAGS=-Wl,-dead_strip"
-
-  # Override default system flags for the target (iPhoneOS)
-  export LDFLAGS="-Wl,-dead_strip"
 fi
 
 if [[ "$BUILD_TYPE" == "Debug" ]]; then
