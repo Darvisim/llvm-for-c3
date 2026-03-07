@@ -162,6 +162,9 @@ find . -name "*.dwo" -type f -delete || true
 
 DESTDIR=destdir cmake --install . --config "${BUILD_TYPE}"
 
+# Create empty include directory if it isn't generated natively to ensure tar doesn't fail
+mkdir -p destdir/include
+
 find . -maxdepth 1 ! -name 'destdir' ! -name 'bin' ! -name 'lib' ! -name '.' -exec rm -rf {} + || true
 
 # -- PHASE 2: Build compiler-rt (Builtins & Sanitizers) --
