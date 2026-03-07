@@ -96,6 +96,7 @@ jobs:
           swap-size-gb: 5
 
       - name: Install ninja
+        if: matrix.target.id != 'windows-amd64'
         shell: bash
         run: |
           if [ "${{ matrix.target.id }}" == 'linux-amd64' || "${{ matrix.target.id }}" == 'linux-aarch64' || "${{ matrix.target.id }}" == 'linux-riscv64' ]; then
