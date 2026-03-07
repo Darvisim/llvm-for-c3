@@ -96,6 +96,7 @@ jobs:
           swap-size-gb: 5
 
       - name: Install ninja
+        shell: bash
         run: |
           if [ "${{ matrix.target.id }}" == 'linux-amd64' || "${{ matrix.target.id }}" == 'linux-aarch64' || "${{ matrix.target.id }}" == 'linux-riscv64' ]; then
             sudo apt-get update
@@ -128,6 +129,7 @@ jobs:
         if: matrix.target.id == 'windows-amd64'
 
       - name: Build
+        shell: bash
         run: |
           if [ "${{ matrix.target.id }}" == "windows-amd64" ]; then
             ./build.ps1 ${{ matrix.llvm_version }} ${{ env.LLVM_REPO_URL }} ${{ matrix.llvm_build_type }}
