@@ -49,6 +49,9 @@ jobs:
             os: "windows-11-arm"
             tar_extra_args: "--dereference"
 
+          - id: "wasm32-emscripten"
+            os: "ubuntu-24.04"
+
     runs-on: ${{ matrix.target.os }}
     container: ${{ matrix.target.container }}
 
@@ -93,8 +96,8 @@ jobs:
         with:
           swap-size-gb: 5
 
-      - name: Install ninja (Linux glibc)
-        if: startsWith(matrix.target.id, 'linux-') && matrix.target.id != 'linux-amd64-musl'
+      - name: Install ninja (Linux glibc & WASM host)
+        if: (startsWith(matrix.target.id, 'linux-') || matrix.target.id == 'wasm32-emscripten') && matrix.target.id != 'linux-amd64-musl'
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build zlib1g-dev libzstd-dev
@@ -128,14 +131,28 @@ jobs:
           arch: ${{ matrix.target.id == 'windows-aarch64' && 'arm64' || 'x64' }}
         if: startsWith(matrix.target.id, 'windows-')
 
+      - name: Setup Emscripten (WebAssembly)
+        if: matrix.target.id == 'wasm32-emscripten'
+        uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: "latest"
+          actions-cache-folder: "emsdk-cache"
+
       - name: Build
         shell: bash
         run: |
-          ./build.sh \
-            ${{ matrix.llvm_version }} \
-            ${{ env.LLVM_REPO_URL }} \
-            ${{ matrix.target.id }} \
-            ${{ matrix.llvm_build_type }}
+          if [ "${{ matrix.target.id }}" = "wasm32-emscripten" ]; then
+            ./build_wasm.sh \
+              ${{ matrix.llvm_version }} \
+              ${{ env.LLVM_REPO_URL }} \
+              ${{ matrix.llvm_build_type }}
+          else
+            ./build.sh \
+              ${{ matrix.llvm_version }} \
+              ${{ env.LLVM_REPO_URL }} \
+              ${{ matrix.target.id }} \
+              ${{ matrix.llvm_build_type }}
+          fi
 
       - name: Package
         shell: bash
