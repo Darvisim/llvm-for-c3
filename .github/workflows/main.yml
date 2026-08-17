@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  LLVM_VERSION: "22.x"
+  LLVM_VERSION: "23.x"
   LLVM_REPO_URL: "https://github.com/llvm/llvm-project.git"
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        llvm_version: ["22.x"]
+        llvm_version: ["23.x"]
         llvm_build_type: ["Release", "Debug"]
         target:
           - id: "linux-amd64"
@@ -157,7 +157,8 @@ jobs:
       - name: Package
         shell: bash
         run: |
-          ./package.sh "${{ matrix.llvm_build_type }}" "tar.gz" "${{ matrix.target.tar_extra_args }}"
+          ### I don't think we need the .tar.gz build artifact anymore so I'll comment it out
+          ###./package.sh "${{ matrix.llvm_build_type }}" "tar.gz" "${{ matrix.target.tar_extra_args }}"
           ./package.sh "${{ matrix.llvm_build_type }}" "tar.xz" "${{ matrix.target.tar_extra_args }}"
 
       - name: Upload Artifacts
