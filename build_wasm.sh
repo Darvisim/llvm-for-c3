@@ -45,6 +45,11 @@ git fetch origin
 git checkout "$LLVM_REF"
 git reset --hard "$LLVM_REF"
 
+# Patch HandleLLVMOptions.cmake file to recognize WASI's platform as UNIX
+if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then
+  perl -0pi -e 's/elseif\(FUCHSIA OR UNIX OR CYGWIN\)/elseif(CMAKE_SYSTEM_NAME STREQUAL "WASI")\n  set(LLVM_ON_UNIX 1)\n  set(LLVM_HAVE_LINK_VERSION_SCRIPT 0)\nelseif(FUCHSIA OR UNIX OR CYGWIN)/ or die "Could not find LLVM platform branch to patch\n";' llvm/cmake/modules/HandleLLVMOptions.cmake
+fi
+
 # 1. Build the Native Host TableGen Tool
 # We unset Emscripten variables within a subshell to ensure the host compiler is used
 if [ ! -f build_host/bin/llvm-tblgen ]; then
