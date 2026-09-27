@@ -71,7 +71,7 @@ fi
 #   )
 # fi
 
-TARGET_TRIPLE=$([[ "$LLVM_CROSS" == "wasm32-emscripten" ]] && echo "wasm32-unknown-wasi" || "wasm32-unknown-wasip1")
+TARGET_TRIPLE=$([[ "$LLVM_CROSS" == "wasm32-emscripten" ]] && echo "wasm32-unknown-wasi" || echo "wasm32-unknown-wasip1")
 
 # 2. Build LLVM/LLD Static Libraries for WebAssembly using Emscripten
 echo "Building LLVM/LLD static libraries for WebAssembly..."
@@ -83,7 +83,7 @@ mkdir -p build/destdir
 
 $(if [[ "$LLVM_CROSS" == "wasm32-emscripten" ]]; echo "emcmake"; fi) \
   cmake -S llvm -B build_wasm -G Ninja \
-  $(if [[ "$LLVM_CROSS" == "wasm32" ]]; then echo "-DCMAKE_TOOLCHAIN_FILE=${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake -DCMAKE_SYSROOT=${WASI_SDK_PATH}/share/wasi-sysroot"; fi) \
+  $(if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then echo "-DCMAKE_TOOLCHAIN_FILE=${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake -DCMAKE_SYSROOT=${WASI_SDK_PATH}/share/wasi-sysroot"; fi) \
   -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
   -DCMAKE_INSTALL_PREFIX="/" \
   -DLLVM_ENABLE_PROJECTS="lld" \
