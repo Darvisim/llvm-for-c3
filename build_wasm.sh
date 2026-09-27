@@ -46,11 +46,11 @@ git checkout "$LLVM_REF"
 git reset --hard "$LLVM_REF"
 
 # Following are patches for WASI in LLVM:
-# Fix 1: Patch HandleLLVMOptions.cmake file to recognize WASI's platform as UNIX
+# Fix 1: Patch HandleLLVMOptions.cmake file to set WASI's platform as not UNIX
 # Fix 2: Patch llvm/include/llvm/ADT/bit.h to exclude machine/endian.h file, as WASI doesn't include it
 if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then
-  perl -0pi -e 's/elseif\(FUCHSIA OR UNIX OR CYGWIN\)/elseif(CMAKE_SYSTEM_NAME STREQUAL "WASI")\n  set(LLVM_ON_UNIX 1)\n  set(LLVM_HAVE_LINK_VERSION_SCRIPT 0)\nelseif(FUCHSIA OR UNIX OR CYGWIN)/ or die "Could not find LLVM platform branch to patch\n";' llvm/cmake/modules/HandleLLVMOptions.cmake
-  perl -0pi -e 's/#if !defined\(BYTE_ORDER\) && !defined\(_WIN32\)/#if !defined(BYTE_ORDER) && !defined(_WIN32) && !defined(__wasi__)/ or die "Could not find endian include guard\n";' llvm/include/llvm/ADT/bit.h
+  perl -0pi -e 's/elseif\(CMAKE_SYSTEM_NAME STREQUAL "Generic"\)/elseif(CMAKE_SYSTEM_NAME MATCHES "Generic|WASI")/ or die "Could not find Generic platform branch to patch\n";' llvm/cmake/modules/HandleLLVMOptions.cmake
+  # perl -0pi -e 's/#if !defined\(BYTE_ORDER\) && !defined\(_WIN32\)/#if !defined(BYTE_ORDER) && !defined(_WIN32) && !defined(__wasi__)/ or die "Could not find endian include guard\n";' llvm/include/llvm/ADT/bit.h
 fi
 
 # 1. Build the Native Host TableGen Tool
