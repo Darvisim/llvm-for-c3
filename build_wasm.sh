@@ -4,10 +4,19 @@ set -euo pipefail
 # Configurations
 LLVM_VERSION="${1:-}"
 LLVM_REPO_URL="${2:-https://github.com/llvm/llvm-project.git}"
-BUILD_TYPE="${3:-Release}"
+LLVM_CROSS="$3"
+BUILD_TYPE="${4:-Release}"
+
+# WASI sdk for wasm32 target
+WASI_SDK_PATH="${WASI_SDK_PATH:-/opt/wasi-sdk}"
 
 if [[ -z "$LLVM_VERSION" ]]; then
   echo "Usage: $0 <llvm-version> [llvm-repository-url] [Release/Debug]"
+  exit 1
+fi
+
+if [[ "$LLVM_CROSS" == "wasm32" && ! -d "$WASI_SDK_PATH" ]]; then
+  echo "Error: WASI SDK not found at $WASI_SDK_PATH"
   exit 1
 fi
 
@@ -50,6 +59,20 @@ if [ ! -f build_host/bin/llvm-tblgen ]; then
   )
 fi
 
+if [[ "$LLVM_CROSS" == "wasm32" && ! -f build_host/bin/llvm-config ]]; then
+  echo "Building native host tools (llvm-config)..."
+  (
+    unset CC CXX CFLAGS CXXFLAGS LDFLAGS
+    cmake -S llvm -B build_host -G Ninja \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DLLVM_BUILD_TOOLS=OFF \
+      -DLLVM_INCLUDE_TESTS=OFF
+    cmake --build build_host --target llvm-config
+  )
+fi
+
+TARGET_TRIPLE=$([[ "$LLVM_CROSS" == "wasm32-emscripten" ]] && echo "wasm32-unknown-wasi" || "wasm32-wasip1")
+
 # 2. Build LLVM/LLD Static Libraries for WebAssembly using Emscripten
 echo "Building LLVM/LLD static libraries for WebAssembly..."
 mkdir -p build_wasm
@@ -58,13 +81,16 @@ mkdir -p build_wasm
 rm -rf build/destdir
 mkdir -p build/destdir
 
-emcmake cmake -S llvm -B build_wasm -G Ninja \
+$(if [[ "$LLVM_CROSS" == "wasm32-emscripten" ]]; echo "emcmake"; fi) \
+  cmake -S llvm -B build_wasm -G Ninja \
+  $(if [[ "$LLVM_CROSS" == "wasm32" ]]; then echo "-DCMAKE_TOOLCHAIN_FILE=${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake -DCMAKE_SYSROOT=${WASI_SDK_PATH}/share/wasi-sysroot"; fi) \
   -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
   -DCMAKE_INSTALL_PREFIX="/" \
   -DLLVM_ENABLE_PROJECTS="lld" \
   -DLLVM_TARGETS_TO_BUILD="WebAssembly" \
-  -DLLVM_DEFAULT_TARGET_TRIPLE="wasm32-unknown-wasi" \
+  -DLLVM_DEFAULT_TARGET_TRIPLE="${TARGET_TRIPLE}" \
   -DLLVM_TABLEGEN="$(pwd)/build_host/bin/llvm-tblgen" \
+  $(if [[ "$LLVM_CROSS" == "wasm32" ]]; then echo "-DLLVM_CONFIG_PATH=$(pwd)/build_host/bin/llvm-config"; fi) \
   -DLLVM_ENABLE_THREADS=OFF \
   -DLLVM_ENABLE_ZLIB=OFF \
   -DLLVM_ENABLE_ZSTD=OFF \
@@ -80,7 +106,8 @@ emcmake cmake -S llvm -B build_wasm -G Ninja \
   -DLLVM_INCLUDE_BENCHMARKS=OFF \
   -DLLVM_INCLUDE_DOCS=OFF \
   -DLLVM_ENABLE_DOXYGEN=OFF \
-  -DLLVM_ENABLE_PIC=OFF
+  -DLLVM_ENABLE_PIC=OFF \
+  $(if [[ "$LLVM_CROSS" == "wasm32" ]]; then echo "-DLLVM_ENABLE_EH=OFF -DLLVM_ENABLE_RTTI=OFF"; fi)
 
 cmake --build build_wasm
 
