@@ -11,7 +11,7 @@ BUILD_TYPE="${4:-Release}"
 WASI_SDK_PATH="${WASI_SDK_PATH:-/opt/wasi-sdk}"
 
 if [[ -z "$LLVM_VERSION" ]]; then
-  echo "Usage: $0 <llvm-version> [llvm-repository-url] [Release/Debug]"
+  echo "Usage: $0 <llvm-version> [llvm-repository-url] [wasm-target] [Release/Debug]"
   exit 1
 fi
 
@@ -81,7 +81,7 @@ mkdir -p build_wasm
 rm -rf build/destdir
 mkdir -p build/destdir
 
-$(if [[ "$LLVM_CROSS" == "wasm32-emscripten" ]]; echo "emcmake"; fi) \
+$(if [[ "$LLVM_CROSS" == "wasm32-emscripten" ]]; then echo "emcmake"; fi) \
   cmake -S llvm -B build_wasm -G Ninja \
   $(if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then echo "-DCMAKE_TOOLCHAIN_FILE=${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake -DCMAKE_SYSROOT=${WASI_SDK_PATH}/share/wasi-sysroot"; fi) \
   -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
