@@ -15,7 +15,7 @@ if [[ -z "$LLVM_VERSION" ]]; then
   exit 1
 fi
 
-if [[ "$LLVM_CROSS" == "wasm32" && ! -d "$WASI_SDK_PATH" ]]; then
+if [[ "$LLVM_CROSS" == "wasm32-wasi" && ! -d "$WASI_SDK_PATH" ]]; then
   echo "Error: WASI SDK not found at $WASI_SDK_PATH"
   exit 1
 fi
@@ -59,17 +59,17 @@ if [ ! -f build_host/bin/llvm-tblgen ]; then
   )
 fi
 
-if [[ "$LLVM_CROSS" == "wasm32" && ! -f build_host/bin/llvm-config ]]; then
-  echo "Building native host tools (llvm-config)..."
-  (
-    unset CC CXX CFLAGS CXXFLAGS LDFLAGS
-    cmake -S llvm -B build_host -G Ninja \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DLLVM_BUILD_TOOLS=OFF \
-      -DLLVM_INCLUDE_TESTS=OFF
-    cmake --build build_host --target llvm-config
-  )
-fi
+# if [[ "$LLVM_CROSS" == "wasm32-wasi" && ! -f build_host/bin/llvm-config ]]; then
+#   echo "Building native host tools (llvm-config)..."
+#   (
+#     unset CC CXX CFLAGS CXXFLAGS LDFLAGS
+#     cmake -S llvm -B build_host -G Ninja \
+#       -DCMAKE_BUILD_TYPE=Release \
+#       -DLLVM_BUILD_TOOLS=OFF \
+#       -DLLVM_INCLUDE_TESTS=OFF
+#     cmake --build build_host --target llvm-config
+#   )
+# fi
 
 TARGET_TRIPLE=$([[ "$LLVM_CROSS" == "wasm32-emscripten" ]] && echo "wasm32-unknown-wasi" || "wasm32-wasip1")
 
@@ -90,7 +90,7 @@ $(if [[ "$LLVM_CROSS" == "wasm32-emscripten" ]]; echo "emcmake"; fi) \
   -DLLVM_TARGETS_TO_BUILD="WebAssembly" \
   -DLLVM_DEFAULT_TARGET_TRIPLE="${TARGET_TRIPLE}" \
   -DLLVM_TABLEGEN="$(pwd)/build_host/bin/llvm-tblgen" \
-  $(if [[ "$LLVM_CROSS" == "wasm32" ]]; then echo "-DLLVM_CONFIG_PATH=$(pwd)/build_host/bin/llvm-config"; fi) \
+  # $(if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then echo "-DLLVM_CONFIG_PATH=$(pwd)/build_host/bin/llvm-config"; fi) \
   -DLLVM_ENABLE_THREADS=OFF \
   -DLLVM_ENABLE_ZLIB=OFF \
   -DLLVM_ENABLE_ZSTD=OFF \
@@ -107,7 +107,7 @@ $(if [[ "$LLVM_CROSS" == "wasm32-emscripten" ]]; echo "emcmake"; fi) \
   -DLLVM_INCLUDE_DOCS=OFF \
   -DLLVM_ENABLE_DOXYGEN=OFF \
   -DLLVM_ENABLE_PIC=OFF \
-  $(if [[ "$LLVM_CROSS" == "wasm32" ]]; then echo "-DLLVM_ENABLE_EH=OFF -DLLVM_ENABLE_RTTI=OFF"; fi)
+  # $(if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then echo "-DLLVM_ENABLE_EH=OFF -DLLVM_ENABLE_RTTI=OFF"; fi)
 
 cmake --build build_wasm
 
