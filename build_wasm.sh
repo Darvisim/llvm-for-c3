@@ -58,7 +58,7 @@ s{#include <setjmp\.h>}{#if !defined(__wasi__)\n#include <setjmp.h>\n#endif} or 
 s{  ::jmp_buf JumpBuffer;}{#if !defined(__wasi__)\n  ::jmp_buf JumpBuffer;\n#endif} or die "Could not find JumpBuffer declaration\n";
 s{    if \(ValidJumpBuffer\)\n      longjmp\(JumpBuffer, 1\);}{#if !defined(__wasi__)\n    if (ValidJumpBuffer)\n      longjmp(JumpBuffer, 1);\n#endif} or die "Could not find longjmp call\n";
 s{#else // !_WIN32\n\n// Generic POSIX implementation\.}{#elif defined(__wasi__)\n\nstatic void installExceptionOrSignalHandlers(bool) {}\nstatic void uninstallExceptionOrSignalHandlers() {}\n\n#else // !_WIN32\n\n// Generic POSIX implementation.} or die "Could not find POSIX handler branch\n";
-s{(bool CrashRecoveryContext::RunSafely\(function_ref<void\(\)> Fn\) \{\n)(.*?)(\n\})}{$1#if defined(__wasi__)\n  Fn();\n  return true;\n#else\n$2\n#endif$3}s or die "Could not find RunSafely implementation\n";
+s{(#endif // !_WIN32\n\nbool CrashRecoveryContext::RunSafely\(function_ref<void\(\)> Fn\) \{\n)(.*?)(\n\}\n\n#endif // !_MSC_VER)}{$1#if defined(__wasi__)\n  Fn();\n  return true;\n#else\n$2\n#endif$3}s or die "Could not find non-MSVC RunSafely implementation\n";
 s{(\[\[noreturn\]\] void CrashRecoveryContext::HandleExit\(int RetCode\) \{\n)#if defined\(_WIN32\)}{$1#if defined(__wasi__)\n  std::exit(RetCode);\n#elif defined(_WIN32)} or die "Could not find HandleExit platform branch\n";
 s{(bool CrashRecoveryContext::throwIfCrash\(int RetCode\) \{\n.*?)(#if defined\(_WIN32\))}{$1#if defined(__wasi__)\n  std::abort();\n#elif defined(_WIN32)}s or die "Could not find throwIfCrash platform branch\n";
 ' llvm/lib/Support/CrashRecoveryContext.cpp
