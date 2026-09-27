@@ -71,7 +71,7 @@ fi
 #   )
 # fi
 
-TARGET_TRIPLE=$([[ "$LLVM_CROSS" == "wasm32-emscripten" ]] && echo "wasm32-unknown-wasi" || "wasm32-wasip1")
+TARGET_TRIPLE=$([[ "$LLVM_CROSS" == "wasm32-emscripten" ]] && echo "wasm32-unknown-wasi" || "wasm32-unknown-wasip1")
 
 # 2. Build LLVM/LLD Static Libraries for WebAssembly using Emscripten
 echo "Building LLVM/LLD static libraries for WebAssembly..."
