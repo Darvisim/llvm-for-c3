@@ -49,8 +49,8 @@ jobs:
           #   os: "windows-11-arm"
           #   tar_extra_args: "--dereference"
 
-          - id: "wasm32-emscripten"
-            os: "ubuntu-24.04"
+          # - id: "wasm32-emscripten"
+          #   os: "ubuntu-24.04"
 
           - id: "wasm32-wasi"
             os: "ubuntu-24.04"
