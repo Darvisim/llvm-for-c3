@@ -102,6 +102,7 @@ $(if [[ "$LLVM_CROSS" == "wasm32-emscripten" ]]; then echo "emcmake"; fi) \
   -DLLVM_ENABLE_ZLIB=OFF \
   -DLLVM_ENABLE_ZSTD=OFF \
   -DLLVM_ENABLE_BACKTRACES=OFF \
+  $(if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then echo "-DLLVM_ENABLE_CRASH_OVERRIDES=OFF"; fi) \
   -DLLVM_ENABLE_LIBXML2=OFF \
   -DCMAKE_DISABLE_FIND_PACKAGE_LibXml2=TRUE \
   -DLLVM_ENABLE_BINDINGS=OFF \
