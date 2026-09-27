@@ -83,14 +83,13 @@ mkdir -p build/destdir
 
 $(if [[ "$LLVM_CROSS" == "wasm32-emscripten" ]]; then echo "emcmake"; fi) \
   cmake -S llvm -B build_wasm -G Ninja \
-  $(if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then echo "-DCMAKE_TOOLCHAIN_FILE=${WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake -DCMAKE_SYSROOT=${WASI_SDK_PATH}/share/wasi-sysroot"; fi) \
+  $(if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then echo "-DCMAKE_TOOLCHAIN_FILE=${WASI_SDK_PATH}/share/cmake/wasi-sdk-p1.cmake -DCMAKE_SYSROOT=${WASI_SDK_PATH}/share/wasi-sysroot"; fi) \
   -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
   -DCMAKE_INSTALL_PREFIX="/" \
   -DLLVM_ENABLE_PROJECTS="lld" \
   -DLLVM_TARGETS_TO_BUILD="WebAssembly" \
   -DLLVM_DEFAULT_TARGET_TRIPLE="${TARGET_TRIPLE}" \
   -DLLVM_TABLEGEN="$(pwd)/build_host/bin/llvm-tblgen" \
-  # $(if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then echo "-DLLVM_CONFIG_PATH=$(pwd)/build_host/bin/llvm-config"; fi) \
   -DLLVM_ENABLE_THREADS=OFF \
   -DLLVM_ENABLE_ZLIB=OFF \
   -DLLVM_ENABLE_ZSTD=OFF \
@@ -106,8 +105,7 @@ $(if [[ "$LLVM_CROSS" == "wasm32-emscripten" ]]; then echo "emcmake"; fi) \
   -DLLVM_INCLUDE_BENCHMARKS=OFF \
   -DLLVM_INCLUDE_DOCS=OFF \
   -DLLVM_ENABLE_DOXYGEN=OFF \
-  -DLLVM_ENABLE_PIC=OFF \
-  # $(if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then echo "-DLLVM_ENABLE_EH=OFF -DLLVM_ENABLE_RTTI=OFF"; fi)
+  -DLLVM_ENABLE_PIC=OFF
 
 cmake --build build_wasm
 
