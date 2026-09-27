@@ -50,6 +50,7 @@ git reset --hard "$LLVM_REF"
 # Fix 2: Patch llvm/include/llvm/ADT/bit.h to exclude machine/endian.h file as WASI doesn't include it
 # Fix 3: Patch llvm/lib/Support/CrashRecoveryContext.cpp to skip over sigaction, setjmp and longjmp implementations as WASI doesn't have proper implementation for them
 # Fix 4: Patch llvm/lib/Support/LockFileManager.cpp to skip getsid which WASI doesn't implement
+# Fix 5: Patch llvm/lib/Support/Unix/Unix.h to exclude <sys/wait.h> as WASI doesn't include it
 if [[ "$LLVM_CROSS" == "wasm32-wasi" ]]; then
   perl -0pi -e 's/elseif\(FUCHSIA OR UNIX OR CYGWIN\)/elseif(CMAKE_SYSTEM_NAME STREQUAL "WASI")\n  set(LLVM_ON_UNIX 1)\n  set(LLVM_HAVE_LINK_VERSION_SCRIPT 0)\nelseif(FUCHSIA OR UNIX OR CYGWIN)/ or die "Could not find LLVM platform branch to patch\n";' llvm/cmake/modules/HandleLLVMOptions.cmake
   perl -0pi -e 's/#if !defined\(BYTE_ORDER\) && !defined\(_WIN32\)/#if !defined(BYTE_ORDER) && !defined(_WIN32) && !defined(__wasi__)/ or die "Could not find endian include guard\n";' llvm/include/llvm/ADT/bit.h
@@ -64,6 +65,7 @@ s{(\[\[noreturn\]\] void CrashRecoveryContext::HandleExit\(int RetCode\) \{\n)#i
 s{(bool CrashRecoveryContext::throwIfCrash\(int RetCode\) \{\n.*?)(#if defined\(_WIN32\))}{$1#if defined(__wasi__)\n  std::abort();\n#elif defined(_WIN32)}s or die "Could not find throwIfCrash platform branch\n";
 ' llvm/lib/Support/CrashRecoveryContext.cpp
   perl -0pi -e 's{(  // Check whether the process is dead\. If so, we'\''re done\.\n)(  if \(StoredHostID == HostID && getsid\(PID\) == -1 && errno == ESRCH\)\n    return false;)}{#if !defined(__wasi__)\n$1$2\n#endif} or die "Could not find getsid stale-lock check\n";' llvm/lib/Support/LockFileManager.cpp
+  perl -0pi -e 's{#include <sys/wait\.h>}{#if !defined(__wasi__)\n#include <sys/wait.h>\n#endif} or die "Could not find sys/wait.h include\n";' llvm/lib/Support/Unix/Unix.h
 fi
 
 # 1. Build the Native Host TableGen Tool
