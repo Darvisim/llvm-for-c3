@@ -67,7 +67,10 @@ s{(bool CrashRecoveryContext::throwIfCrash\(int RetCode\) \{\n.*?)(#if defined\(
 ' llvm/lib/Support/CrashRecoveryContext.cpp
   perl -0pi -e 's{(  // Check whether the process is dead\. If so, we'\''re done\.\n)(  if \(StoredHostID == HostID && getsid\(PID\) == -1 && errno == ESRCH\)\n    return false;)}{#if !defined(__wasi__)\n$1$2\n#endif} or die "Could not find getsid stale-lock check\n";' llvm/lib/Support/LockFileManager.cpp
   perl -0pi -e 's{#include <sys/wait\.h>}{#if !defined(__wasi__)\n#include <sys/wait.h>\n#endif} or die "Could not find sys/wait.h include\n";' llvm/lib/Support/Unix/Unix.h
-  perl -0pi -e 's{^  raw_socket_stream\.cpp$}{  \$<\$<NOT:\$<STREQUAL:\${CMAKE_SYSTEM_NAME},WASI>>:raw_socket_stream.cpp>}m or die "Could not find raw_socket_stream.cpp in LLVMSupport sources\n";' llvm/lib/Support/CMakeLists.txt
+  perl -0pi -e '
+s{^.*raw_socket_stream\.cpp.*$}{  raw_socket_stream.cpp}m or die "Could not find raw_socket_stream.cpp source entry\n";
+s{add_llvm_component_library\(LLVMSupport\n}{if(CMAKE_SYSTEM_NAME STREQUAL "WASI")\n  set_source_files_properties(raw_socket_stream.cpp PROPERTIES HEADER_FILE_ONLY TRUE)\nendif()\n\nadd_llvm_component_library(LLVMSupport\n} or die "Could not find LLVMSupport declaration\n";
+' llvm/lib/Support/CMakeLists.txt
 fi
 
 # 1. Build the Native Host TableGen Tool
